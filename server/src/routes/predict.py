@@ -66,7 +66,6 @@ def predict_handler():
                 "answerability": answerability.item(),
             },
         )
-
     except Exception:
         return send_response(500, "error", "An error occurred.")
 

@@ -57,12 +57,12 @@ The project is currently paused. At the moment, only the frontend is deployed, s
 |   |   `-- main.py                 # Flask app entry point
 |   |-- requirements.txt
 |   |-- requirements-dev.txt
+|   |-- pyproject.toml              # Ruff formatting and linting configuration
 |   `-- .gitignore
 |-- Dockerfile
 |-- docker-compose.yml
 |-- docs/                           # Project paper/report PDF
 |-- notebooks/                      # Visual question answering notebook and model experimentation
-|-- pyproject.toml                  # Ruff formatting and linting configuration
 |-- README.md
 `-- LICENSE
 ```
@@ -183,22 +183,25 @@ cd client
 npm run format
 ```
 
-Format backend Python code from the repository root:
+Format backend Python code:
 
 ```bash
-python -m ruff format server/src server/scripts
+cd server
+python -m ruff format src scripts
 ```
 
-Lint backend Python code from the repository root:
+Lint backend Python code:
 
 ```bash
-python -m ruff check server/src server/scripts
+cd server
+python -m ruff check src scripts
 ```
 
 Apply safe backend lint fixes:
 
 ```bash
-python -m ruff check server/src server/scripts --fix
+cd server
+python -m ruff check src scripts --fix
 ```
 
 There is no backend test script currently configured.
