@@ -1,22 +1,18 @@
-import os
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIRECTORY = Path(__file__).resolve().parent
+CLIENT_DIRECTORY = (BASE_DIRECTORY / ".." / ".." / "client").resolve()
+CLIENT_DIST_DIRECTORY = CLIENT_DIRECTORY / "dist"
 
-CLIENT_DIR = os.path.join(BASE_DIR, "../../client")
-CLIENT_DIST_DIR = os.path.join(CLIENT_DIR, "./dist")
+ARTIFACTS_DIRECTORY = BASE_DIRECTORY / "artifacts"
+VQNA_ARTIFACT_DIRECTORY = ARTIFACTS_DIRECTORY / "vqna"
+CLIP_DOWNLOAD_DIRECTORY = ARTIFACTS_DIRECTORY / "clip"
+VQNA_IMAGES_DIRECTORY = BASE_DIRECTORY / "images"
 
-IMAGES_DIR = os.path.join(BASE_DIR, "./images")
+CLIP_MODEL_NAME = "ViT-L/14@336px"
 
-SAVED_DIR = os.path.join(BASE_DIR, "./saved")
-SAVED_MODELS_DIR = os.path.join(SAVED_DIR, "./models")
-SAVED_ENCODERS_DIR = os.path.join(SAVED_DIR, "./encoders")
-
-MODEL_ENCODER_ANSWER_PATH = os.path.join(SAVED_ENCODERS_DIR, "model_encoder_answer.pkl")
-MODEL_ENCODER_ANSWER_TYPE_PATH = os.path.join(
-    SAVED_ENCODERS_DIR, "model_encoder_answer_type.pkl"
+MODEL_ENCODER_ANSWER_PATH = VQNA_ARTIFACT_DIRECTORY / "model_encoder_answer.pkl"
+MODEL_ENCODER_ANSWER_TYPE_PATH = (
+    VQNA_ARTIFACT_DIRECTORY / "model_encoder_answer_type.pkl"
 )
-
-MODEL_PATH = os.path.join(SAVED_MODELS_DIR, "VisualQnA.pth")
-
-# Ensure images directory exists
-os.makedirs(IMAGES_DIR, exist_ok=True)
+MODEL_PATH = VQNA_ARTIFACT_DIRECTORY / "VisualQnA.pth"

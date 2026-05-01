@@ -1,11 +1,12 @@
 from flask import Flask
 from flask_cors import CORS
-from src.routes import web, predict
-from src.config import CLIENT_DIST_DIR
+
+from src.config import CLIENT_DIST_DIRECTORY
+from src.routes import predict, web
 
 
 def create_app():
-    app = Flask(__name__, static_folder=CLIENT_DIST_DIR, static_url_path="/")
+    app = Flask(__name__, static_folder=str(CLIENT_DIST_DIRECTORY), static_url_path="/")
 
     CORS(app, methods=["GET", "POST", "OPTIONS"])
 

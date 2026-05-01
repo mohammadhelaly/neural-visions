@@ -43,134 +43,128 @@ The project is currently paused. At the moment, only the frontend is deployed, s
 |   |-- tsconfig.json
 |   `-- vite.config.ts
 |-- server/
+|   |-- scripts/
+|   |   `-- prepare_artifacts.py       # Downloads and normalizes Kaggle model artifacts
 |   |-- src/
+|   |   |-- artifacts/
+|   |   |   `-- vqna/                   # Runtime VQnA model bundle, ignored by git
 |   |   |-- images/                 # Temporary uploaded/downloaded images during prediction
 |   |   |-- models/                 # PyTorch model class and CLIP-based inference logic
 |   |   |-- routes/                 # Flask route blueprints for web and prediction routes
-|   |   |-- saved/
-|   |   |   |-- encoders/            # Pickled label encoders committed with the repo
-|   |   |   `-- models/              # Place VisualQnA.pth here before running the backend
 |   |   |-- utils/                  # Loader, validation, and API response helpers
 |   |   |-- app.py                  # Flask app factory, CORS, routes, and static folder config
-|   |   |-- config.py               # Local paths for client build, images, encoders, and model file
+|   |   |-- config.py               # Paths for client build, runtime images, and artifacts
 |   |   `-- main.py                 # Flask app entry point
 |   |-- requirements.txt
+|   |-- requirements-dev.txt
 |   `-- .gitignore
+|-- Dockerfile
+|-- docker-compose.yml
 |-- docs/                           # Project paper/report PDF
 |-- notebooks/                      # Visual question answering notebook and model experimentation
+|-- pyproject.toml                  # Ruff formatting and linting configuration
 |-- README.md
 `-- LICENSE
 ```
 
 ## Prerequisites
 
-- Node.js 18 or newer.
-- npm. The frontend includes `package-lock.json`, so npm is the expected package manager.
-- Python 3.10 or newer is recommended for the pinned scientific Python dependencies.
-- A Python virtual environment for the Flask backend.
-- Internet access during first backend setup so pip can install dependencies and CLIP can download its model weights if they are not already cached.
-- The trained `VisualQnA.pth` model file downloaded from [Kaggle](https://www.kaggle.com/models/mohammadhelaly/visualqna).
+- Docker and Docker Compose for the recommended setup.
+- A free Kaggle API token for the first artifact download. Generate one from [Kaggle API settings](https://www.kaggle.com/settings/api).
+- Internet access on first startup so the app can download the Kaggle VQnA artifact bundle and CLIP can download its own weights.
 
-Before running the backend, download `VisualQnA.pth` and place it at:
-
-```text
-server/src/saved/models/VisualQnA.pth
-```
-
-The backend loads the model during route initialization, so it will fail to start if this file is missing. The `.pth` file is intentionally ignored by git because it is a large model artifact.
+Node.js and Python are only required when running the frontend or backend outside Docker.
 
 ## Environment Variables
 
-The frontend reads the backend base URL from a Vite environment variable.
+Create a root `.env` file before running Docker. This file is intentionally ignored by git because it contains your Kaggle token.
 
-Create `client/.env` for local development:
+```env
+KAGGLE_API_TOKEN=your_token_here
+
+# Keep this unchanged unless you are intentionally changing model/runtime assets.
+KAGGLE_MODEL_HANDLE=mohammadhelaly/visualqna/pytorch/default/2
+PORT=5000
+
+# Optional runtime tuning.
+WEB_CONCURRENCY=1
+GUNICORN_TIMEOUT=180
+VQNA_FORCE_ARTIFACT_DOWNLOAD=0
+```
+
+`KAGGLE_API_TOKEN` is required for the first download. For a public Kaggle model, any valid Kaggle API token can fetch the artifacts; it does not need to belong to the model owner.
+
+Keep `KAGGLE_MODEL_HANDLE` pinned to a versioned Kaggle model handle so deployments do not accidentally upgrade. To use a new published Kaggle version, change this handle and restart the container. The new version must contain `VisualQnA.pth`, `model_encoder_answer.pkl`, and `model_encoder_answer_type.pkl`.
+
+The app stores VQnA artifacts, CLIP weights, and temporary uploaded images in fixed internal paths under `server/src/`. Those paths are code constants because they are tied to the Docker volume layout and the trained model architecture.
+
+Use `VQNA_FORCE_ARTIFACT_DOWNLOAD=1` only for a one-off refresh when you want to redownload artifacts without changing `KAGGLE_MODEL_HANDLE`; set it back to `0` afterward. `PORT`, `WEB_CONCURRENCY`, and `GUNICORN_TIMEOUT` can be tuned without changing project behavior.
+
+All root `.env` values are runtime Docker Compose settings, so changing them does not require rebuilding the image. Restart or recreate the container with `docker compose up -d` after changing `.env`; use `docker compose up --build` only after code, dependency, Dockerfile, or frontend build changes. Changing `PORT` also recreates the port mapping, so open the app at the new port afterward.
+
+No-rebuild `.env` changes are `KAGGLE_API_TOKEN`, `KAGGLE_MODEL_HANDLE`, `PORT`, `WEB_CONCURRENCY`, `GUNICORN_TIMEOUT`, and `VQNA_FORCE_ARTIFACT_DOWNLOAD`.
+
+For local frontend development outside Docker, create `client/.env`:
 
 ```env
 VITE_BACKEND_BASE_URL=http://localhost:5000
 ```
 
-There are currently no required backend environment variables for local development. Backend paths for the model, encoders, temporary images, and client build output are configured in `server/src/config.py`.
-
 ## Runbook
 
-Download the trained model from Kaggle first:
+Start the full app with Docker:
 
-```text
-https://www.kaggle.com/models/mohammadhelaly/visualqna
+```bash
+docker compose up --build
 ```
 
-Place the downloaded file here:
+Open the app at:
 
 ```text
-server/src/saved/models/VisualQnA.pth
+http://localhost:5000
 ```
 
-Install backend dependencies in a virtual environment. Depending on your local Python setup, use either `python3` or `python` for these commands:
+On first startup, the container downloads the VQnA artifact bundle from Kaggle into a Docker volume mounted at `/app/server/src/artifacts`. The bundle must include:
+
+```text
+VisualQnA.pth
+model_encoder_answer.pkl
+model_encoder_answer_type.pkl
+```
+
+The startup script downloads each required file explicitly from the pinned Kaggle version. The `.pth` and matching `.pkl` files must exist together in that Kaggle version.
+
+Later restarts reuse the downloaded artifacts unless `KAGGLE_MODEL_HANDLE` changes or `VQNA_FORCE_ARTIFACT_DOWNLOAD=1` is set. Docker also prepares the CLIP `ViT-L/14@336px` cache under `/app/server/src/artifacts/clip`, so that download is persistent and verified before Gunicorn imports the app and loads the model.
+
+The prediction endpoint is available at `POST /predict` and expects multipart form data with a `question` field plus either an `image` file or an `image_url` field.
+
+Run the backend outside Docker only when you need local Python development. Use a virtual environment on the host, then run the same artifact preparation script before Flask imports the model. On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` and set the token with `$env:KAGGLE_API_TOKEN="your_token_here"`.
 
 ```bash
 cd server
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-Start the Flask backend API:
-
-```bash
-cd server
-source .venv/bin/activate
+python -m pip install --upgrade pip wheel "setuptools<80"
+python -m pip install --no-build-isolation -r requirements-dev.txt
+KAGGLE_API_TOKEN=your_token_here python scripts/prepare_artifacts.py
 flask --app src.main run --host 0.0.0.0 --port 5000
 ```
 
-By default, the backend runs at `http://localhost:5000`. The prediction endpoint is available at `POST /predict` and expects multipart form data with a `question` field plus either an `image` file or an `image_url` field.
-
-Install frontend dependencies:
+For frontend-only local development:
 
 ```bash
 cd client
 npm install
-```
-
-Create the local frontend environment file:
-
-```bash
-cd client
-printf "VITE_BACKEND_BASE_URL=http://localhost:5000\n" > .env
-```
-
-Start the frontend development server:
-
-```bash
-cd client
 npm run dev
 ```
 
 The Vite dev server is configured to run at `http://localhost:3000`.
 
-Build the frontend production bundle:
+Build the frontend production bundle outside Docker:
 
 ```bash
 cd client
 npm run build
-```
-
-Preview the production frontend bundle with Vite:
-
-```bash
-cd client
-npm run preview
-```
-
-Serve the built frontend through Flask:
-
-```bash
-cd client
-npm run build
-
-cd ../server
-source .venv/bin/activate
-flask --app src.main run --host 0.0.0.0 --port 5000
 ```
 
 After `client/dist` exists, Flask serves the built frontend from `/` and the API from `/predict`.
@@ -189,17 +183,35 @@ cd client
 npm run format
 ```
 
+Format backend Python code from the repository root:
+
+```bash
+python -m ruff format server/src server/scripts
+```
+
+Lint backend Python code from the repository root:
+
+```bash
+python -m ruff check server/src server/scripts
+```
+
+Apply safe backend lint fixes:
+
+```bash
+python -m ruff check server/src server/scripts --fix
+```
+
 There is no backend test script currently configured.
 
 ## Deployment
 
-The current deployed surface is frontend-only. Because the hosted backend/model inference service is not currently active, deployed prediction requests require a configured `VITE_BACKEND_BASE_URL` that points to a running Flask backend with `VisualQnA.pth` installed under `server/src/saved/models/`.
+The recommended deployment unit is the Docker image built from this repository. The image contains the app code and Python/Node build output, while large VQnA artifacts are downloaded on startup into a persistent volume.
 
-For a full deployment, the backend environment must include the Python dependencies, the CLIP model cache or internet access for first load, the committed encoder files, and the downloaded Kaggle model artifact.
+For production, keep `KAGGLE_MODEL_HANDLE` pinned to an explicit version and provide `KAGGLE_API_TOKEN` as a deployment secret. Use a persistent volume for `/app/server/src/artifacts` so scaled or restarted containers do not redownload the VQnA bundle every time.
 
 ## Development Notes
 
-- Download `VisualQnA.pth` from the [Kaggle model page](https://www.kaggle.com/models/mohammadhelaly/visualqna) before running backend inference locally.
+- The VQnA `.pth` file and `.pkl` encoders are treated as one runtime artifact bundle and must be versioned together on Kaggle.
 - Uploaded image files and images fetched from URLs are temporarily stored under `server/src/images/` and removed after each prediction request.
 - The model runs on CPU in the current backend configuration.
 - The notebook work took place on [Kaggle](https://www.kaggle.com/code/mohammadhelaly/visual-question-answering); the local notebook under `notebooks/` and the PDF under `docs/` provide historical project and model-development context.

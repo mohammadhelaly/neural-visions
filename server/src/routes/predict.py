@@ -1,11 +1,12 @@
-from flask import Blueprint, request
-import os
 import urllib.request
 import uuid
+
+from flask import Blueprint, request
+
+from src.config import VQNA_IMAGES_DIRECTORY
 from src.utils.api import send_response
-from src.utils.validators import is_valid_image, is_valid_url
 from src.utils.loaders import load_model_and_encoders
-from src.config import IMAGES_DIR
+from src.utils.validators import is_valid_image, is_valid_url
 
 predict = Blueprint("predict", __name__)
 
@@ -18,8 +19,7 @@ def predict_handler():
         image_url_user = request.form.get("image_url")
         question_user = request.form.get("question")
 
-        unique_image_filename = str(uuid.uuid4())
-        user_image_path = os.path.join(IMAGES_DIR, unique_image_filename + ".jpg")
+        user_image_path = VQNA_IMAGES_DIRECTORY / f"{uuid.uuid4()}.jpg"
 
         if not question_user:
             return send_response(400, "error", "Question not provided.")
@@ -35,19 +35,19 @@ def predict_handler():
         if "image" in request.files:
             image_user = request.files["image"]
 
-            image_user.save(user_image_path)
+            image_user.save(str(user_image_path))
 
-            if not is_valid_image(image_user):
+            if not is_valid_image(user_image_path):
                 return send_response(400, "error", "Image format not allowed.")
 
         if image_url_user:
             if not is_valid_url(image_url_user):
                 return send_response(400, "error", "Invalid image URL.")
 
-            urllib.request.urlretrieve(image_url_user, user_image_path)
+            urllib.request.urlretrieve(image_url_user, str(user_image_path))
 
         predicted_answer, predicted_answer_type, answerability = model.test_model(
-            image_path=user_image_path, question=question_user
+            image_path=str(user_image_path), question=question_user
         )
         answer = model_encoder_answer.inverse_transform(
             predicted_answer.cpu().detach().numpy()
@@ -67,9 +67,9 @@ def predict_handler():
             },
         )
 
-    except:
+    except Exception:
         return send_response(500, "error", "An error occurred.")
 
     finally:
-        if os.path.exists(user_image_path):
-            os.remove(user_image_path)
+        if user_image_path and user_image_path.exists():
+            user_image_path.unlink()
