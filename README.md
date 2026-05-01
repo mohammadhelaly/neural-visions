@@ -136,7 +136,9 @@ The startup script downloads each required file explicitly from the pinned Kaggl
 
 Later restarts reuse the downloaded artifacts unless `KAGGLE_MODEL_HANDLE` changes or `VQNA_FORCE_ARTIFACT_DOWNLOAD=1` is set. Docker also prepares the CLIP `ViT-L/14@336px` cache under `/app/server/src/artifacts/clip`, so that download is persistent and verified before Gunicorn imports the app and loads the model.
 
-The prediction endpoint is available at `POST /predict` and expects multipart form data with a `question` field plus either an `image` file or an `image_url` field.
+The prediction endpoint is available at `POST /predict` and expects multipart form data with a `question` field plus exactly one of an uploaded `image` file or an `image_url` value.
+
+Uploaded files and remote image URLs are size-limited and validated before inference runs.
 
 Run the backend outside Docker only when you need local Python development. Use a virtual environment on the host, then run the same artifact preparation script before Flask imports the model. On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` and set the token with `$env:KAGGLE_API_TOKEN="your_token_here"`.
 
