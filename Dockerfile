@@ -1,11 +1,14 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS client-build
+FROM node:20-bookworm-slim AS client-base
 
 WORKDIR /app/client
 
 COPY client/package*.json ./
 RUN npm ci
+
+
+FROM client-base AS client-build
 
 COPY client/ ./
 
@@ -15,7 +18,12 @@ ENV VITE_BACKEND_BASE_URL=${VITE_BACKEND_BASE_URL}
 RUN npm run build
 
 
-FROM python:3.11-slim AS runtime
+FROM client-base AS client-dev
+
+EXPOSE 3000
+
+
+FROM python:3.11-slim AS server-base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -37,8 +45,6 @@ RUN python -m pip install --upgrade pip \
     && python -m pip install wheel "setuptools<80" \
     && python -m pip install --no-build-isolation -r server/requirements.txt
 
-COPY server ./server
-COPY --from=client-build /app/client/dist ./client/dist
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
 
 RUN chmod +x ./docker/entrypoint.sh \
@@ -46,9 +52,22 @@ RUN chmod +x ./docker/entrypoint.sh \
         /app/server/src/artifacts/clip \
         /app/server/src/images
 
+EXPOSE 5000
+
+
+FROM server-base AS server-dev
+
 WORKDIR /app/server
 
-EXPOSE 5000
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
+
+
+FROM server-base AS runtime
+
+COPY server ./server
+COPY --from=client-build /app/client/dist ./client/dist
+
+WORKDIR /app/server
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers ${WEB_CONCURRENCY:-1} --timeout ${GUNICORN_TIMEOUT:-180} src.main:app"]

@@ -8,7 +8,7 @@ services:
             PORT: ${PORT:-5000}
             WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
             GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-180}
-            VQNA_FORCE_ARTIFACT_DOWNLOAD: ${VQNA_FORCE_ARTIFACT_DOWNLOAD:-0}
+            VQNA_FORCE_ARTIFACT_DOWNLOAD: ${VQNA_FORCE_ARTIFACT_DOWNLOAD:-false}
         ports:
             - "${PORT:-5000}:${PORT:-5000}"
         volumes:

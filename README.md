@@ -89,7 +89,7 @@ PORT=5000
 # Optional runtime tuning.
 WEB_CONCURRENCY=1
 GUNICORN_TIMEOUT=180
-VQNA_FORCE_ARTIFACT_DOWNLOAD=0
+VQNA_FORCE_ARTIFACT_DOWNLOAD=false
 ```
 
 `KAGGLE_API_TOKEN` is required for the first download. For a public Kaggle model, any valid Kaggle API token can fetch the artifacts; it does not need to belong to the model owner.
@@ -98,7 +98,7 @@ Keep `KAGGLE_MODEL_HANDLE` pinned to a versioned Kaggle model handle so deployme
 
 The app stores VQnA artifacts, CLIP weights, and temporary uploaded images in fixed internal paths under `server/src/`. Those paths are code constants because they are tied to the Docker volume layout and the trained model architecture.
 
-Use `VQNA_FORCE_ARTIFACT_DOWNLOAD=1` only for a one-off refresh when you want to redownload artifacts without changing `KAGGLE_MODEL_HANDLE`; set it back to `0` afterward. `PORT`, `WEB_CONCURRENCY`, and `GUNICORN_TIMEOUT` can be tuned without changing project behavior.
+Use `VQNA_FORCE_ARTIFACT_DOWNLOAD=true` only for a one-off refresh when you want to redownload artifacts without changing `KAGGLE_MODEL_HANDLE`; set it back to `false` afterward. `PORT`, `WEB_CONCURRENCY`, and `GUNICORN_TIMEOUT` can be tuned without changing project behavior.
 
 All root `.env` values are runtime Docker Compose settings, so changing them does not require rebuilding the image. Restart or recreate the container with `docker compose up -d` after changing `.env`; use `docker compose up --build` only after code, dependency, Dockerfile, or frontend build changes. Changing `PORT` also recreates the port mapping, so open the app at the new port afterward.
 
@@ -124,6 +124,26 @@ Open the app at:
 http://localhost:5000
 ```
 
+For live-reload Docker development, run the backend and frontend as separate dev services:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Open the dev frontend at:
+
+```text
+http://localhost:3000
+```
+
+The dev backend stays available at:
+
+```text
+http://localhost:5000
+```
+
+In Docker dev mode, edits under `server/` trigger the Flask debug reloader, and edits under `client/` trigger the Vite dev server with HMR. Rebuild the dev images only when Python dependencies, Node dependencies, or the Docker configuration changes.
+
 On first startup, the container downloads the VQnA artifact bundle from Kaggle into a Docker volume mounted at `/app/server/src/artifacts`. The bundle must include:
 
 ```text
@@ -134,7 +154,9 @@ model_encoder_answer_type.pkl
 
 The startup script downloads each required file explicitly from the pinned Kaggle version. The `.pth` and matching `.pkl` files must exist together in that Kaggle version.
 
-Later restarts reuse the downloaded artifacts unless `KAGGLE_MODEL_HANDLE` changes or `VQNA_FORCE_ARTIFACT_DOWNLOAD=1` is set. Docker also prepares the CLIP `ViT-L/14@336px` cache under `/app/server/src/artifacts/clip`, so that download is persistent and verified before Gunicorn imports the app and loads the model.
+Later restarts reuse the downloaded artifacts unless `KAGGLE_MODEL_HANDLE` changes or `VQNA_FORCE_ARTIFACT_DOWNLOAD=true` is set. Docker also prepares the CLIP `ViT-L/14@336px` cache under `/app/server/src/artifacts/clip`, so that download is persistent and verified before Gunicorn imports the app and loads the model.
+
+The Docker dev setup uses the same `artifacts` named volume, so VQnA artifacts and the CLIP cache are reused across production-style Docker runs and live-reload Docker dev runs.
 
 The prediction endpoint is available at `POST /predict` and expects multipart form data with a `question` field plus exactly one of an uploaded `image` file or an `image_url` value.
 
