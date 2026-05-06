@@ -1,0 +1,5 @@
+.env
+.env.*
+.hf-space-build/
+
+.DS_Store

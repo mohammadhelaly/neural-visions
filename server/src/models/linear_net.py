@@ -1,16 +1,24 @@
-import torch
-import torch.nn as nn
-import numpy as np
 import clip
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
 from PIL import Image
 from sklearn.metrics import average_precision_score
 
 
 class LinearNet(nn.Module):
+    def __init__(
+        self,
+        num_classes,
+        model="ViT-L/14@336px",
+        device=None,
+        clip_download_directory=None,
+    ):
+        super().__init__()
 
-    def __init__(self, num_classes, model="ViT-L/14@336px", device=torch.device("cpu")):
-        super(LinearNet, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
 
         self.loss_train = []
         self.loss_val = []
@@ -26,7 +34,11 @@ class LinearNet(nn.Module):
 
         self.ans_loss_fn = nn.BCELoss()
 
-        self.clip_model, self.preprocess = clip.load(model, device=device)
+        self.clip_model, self.preprocess = clip.load(
+            model,
+            device=device,
+            download_root=clip_download_directory,
+        )
 
         for param in self.clip_model.parameters():
             param.requires_grad = False
@@ -94,7 +106,6 @@ class LinearNet(nn.Module):
     ):
 
         for epoch in range(0, num_epochs):
-
             train_loss, train_vizwiz_acc, train_ans = self.train_step(
                 train_dataloader, criterion, optimizer, self.device
             )
@@ -111,10 +122,10 @@ class LinearNet(nn.Module):
             self.ans_train.append(train_ans)
             self.ans_val.append(val_ans)
 
-            print(f"Epoch {epoch+1}/{num_epochs}:")
+            print(f"Epoch {epoch + 1}/{num_epochs}:")
             print(f"Training Loss: {train_loss:.4f} | Validation Loss: {val_loss:.4f}")
             print(
-                f"Training Vizwiz Accuracy: {train_vizwiz_acc:.4f} | Validation Vizwiz Accuracy: { val_vizwiz_acc:.4f}"
+                f"Training Vizwiz Accuracy: {train_vizwiz_acc:.4f} | Validation Vizwiz Accuracy: {val_vizwiz_acc:.4f}"
             )
             print(
                 f"Training Answerability Score: {train_ans:.4f} | Validation Answerability Score: {val_ans:.4f}"
@@ -131,7 +142,6 @@ class LinearNet(nn.Module):
 
         self.train()
         for _, batch in enumerate(dataloader):
-
             image, question, answer, answer_type, question_answers, answerable = batch
             image, question, answer, answer_type, question_answers, answerable = (
                 image.to(device),
@@ -157,10 +167,8 @@ class LinearNet(nn.Module):
 
             training_loss += loss.item()
             predicted_answer = torch.argmax(output, dim=1)
-            true_answer = torch.argmax(answer, dim=1)
 
             for i in range(len(answer)):
-
                 sum += 1
                 vizwiz_acc += min(
                     1,
@@ -193,7 +201,6 @@ class LinearNet(nn.Module):
         self.eval()
         with torch.no_grad():
             for _, batch in enumerate(dataloader):
-
                 image, question, answer, answer_type, question_answers, answerable = (
                     batch
                 )
@@ -217,10 +224,8 @@ class LinearNet(nn.Module):
                 val_loss += loss.item()
 
                 predicted_answer = torch.argmax(output, dim=1)
-                actual_answer = torch.argmax(answer, dim=1)
 
                 for i in range(len(answer)):
-
                     if torch.sum(answer[i]) == 0:
                         continue
                     sum += 1
@@ -258,7 +263,6 @@ class LinearNet(nn.Module):
         self.eval()
         with torch.no_grad():
             for _, batch in enumerate(dataloader):
-
                 image, question, answer, answer_type, question_answers, answerable = (
                     batch
                 )
@@ -279,7 +283,6 @@ class LinearNet(nn.Module):
                 true_answer = torch.argmax(answer, dim=1)
 
                 for i in range(len(answer)):
-
                     if torch.sum(answer[i]) == 0:
                         continue
                     if predicted_answer[i] == true_answer[i]:
@@ -357,6 +360,8 @@ class LinearNet(nn.Module):
 
     def load_model(self, path):
 
-        self.load_state_dict(torch.load(path, map_location=torch.device("cpu")))
+        self.load_state_dict(
+            torch.load(path, map_location=torch.device("cpu"), weights_only=True)
+        )
         self.eval()
         return self
