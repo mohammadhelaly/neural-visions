@@ -76,7 +76,8 @@ USER user
 ENV HOME=/home/user PATH=/home/user/.local/bin:$PATH
 # ============================
 
-RUN --mount=type=secret,id=KAGGLE_API_TOKEN,required=true \
+# The uid, gid and mode settings are specific for deployment with Hugging Face.
+RUN --mount=type=secret,id=KAGGLE_API_TOKEN,uid=1000,gid=1000,mode=0400,required=true \
     export KAGGLE_API_TOKEN="$(cat /run/secrets/KAGGLE_API_TOKEN)" \
     && python /app/server/scripts/prepare_artifacts.py
 
