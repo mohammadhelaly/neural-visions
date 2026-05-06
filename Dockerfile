@@ -67,7 +67,10 @@ FROM server-base AS runtime
 COPY server ./server
 COPY --from=client-build /app/client/dist ./client/dist
 
+RUN --mount=type=secret,id=KAGGLE_API_TOKEN,required=true \
+    export KAGGLE_API_TOKEN="$(cat /run/secrets/KAGGLE_API_TOKEN)" \
+    && python /app/server/scripts/prepare_artifacts.py
+
 WORKDIR /app/server
 
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers ${WEB_CONCURRENCY:-1} --timeout ${GUNICORN_TIMEOUT:-180} src.main:app"]

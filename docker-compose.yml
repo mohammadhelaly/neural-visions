@@ -2,17 +2,16 @@ services:
     web:
         build:
             context: .
+            secrets:
+                - source: kaggle_api_token
+                  target: KAGGLE_API_TOKEN
         environment:
-            KAGGLE_API_TOKEN: ${KAGGLE_API_TOKEN:-}
-            KAGGLE_MODEL_HANDLE: ${KAGGLE_MODEL_HANDLE:-mohammadhelaly/visualqna/pytorch/default/2}
             PORT: ${PORT:-5000}
             WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
             GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-180}
-            VQNA_FORCE_ARTIFACT_DOWNLOAD: ${VQNA_FORCE_ARTIFACT_DOWNLOAD:-false}
         ports:
             - "${PORT:-5000}:${PORT:-5000}"
-        volumes:
-            - artifacts:/app/server/src/artifacts
 
-volumes:
-    artifacts:
+secrets:
+    kaggle_api_token:
+        environment: KAGGLE_API_TOKEN

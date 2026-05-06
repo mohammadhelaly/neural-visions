@@ -21,7 +21,7 @@ The repository is currently optimized for local Docker development and Docker im
 - PyTorch and TorchVision for model loading and inference.
 - OpenAI CLIP for image and text encoding.
 - scikit-learn, NumPy, Pillow, and supporting scientific Python packages for model utilities, preprocessing, encoders, and image handling.
-- KaggleHub for downloading the project's VQnA artifact bundle at container startup
+- KaggleHub for downloading the project's VQnA artifact bundle during dev startup and runtime image builds
 
 ## Project Structure
 
@@ -89,20 +89,47 @@ GUNICORN_TIMEOUT=180
 VQNA_FORCE_ARTIFACT_DOWNLOAD=false
 ```
 
-- `KAGGLE_API_TOKEN` is required when the `artifacts` volume does not already contain the VQnA bundle, or when a forced refresh is requested. Any valid Kaggle API token can fetch the artifacts; it does not need to belong to the model owner.
+- `KAGGLE_API_TOKEN` is required for two cases: dev-mode artifact downloads and runtime image builds. Any valid Kaggle API token can fetch the artifacts; it does not need to belong to the model owner.
 - `KAGGLE_MODEL_HANDLE` is the exact Kaggle model handle for this project's trained VQnA bundle. It is not a general configuration value and must remain exactly `mohammadhelaly/visualqna/pytorch/default/2`, because the backend expects the files published in that specific bundle.
 - `PORT`, `WEB_CONCURRENCY`, and `GUNICORN_TIMEOUT` are runtime settings for the single-container `web` service.
-- `VQNA_FORCE_ARTIFACT_DOWNLOAD=true` forces a one-off artifact refresh on the next container start; set it back to `false` afterward.
+- `VQNA_FORCE_ARTIFACT_DOWNLOAD=true` forces a one-off artifact refresh for startup-based artifact preparation, which currently applies to the dev stack.
 
-The root `.env` file includes one fixed project identifier, `KAGGLE_MODEL_HANDLE`, and the remaining runtime settings. Changing `.env` values affects container startup behavior, not the image build, so you only need to restart the relevant compose stack. `KAGGLE_MODEL_HANDLE` should still remain exactly as shown above.
+The root `.env` file includes one fixed project identifier, `KAGGLE_MODEL_HANDLE`, plus the values used by the current Docker workflows. `KAGGLE_API_TOKEN` is consumed as a Docker build secret when building the `web` runtime image, while the remaining values affect container startup behavior. `KAGGLE_MODEL_HANDLE` should still remain exactly as shown above.
 
 For the Docker dev stack, `VITE_BACKEND_BASE_URL=http://localhost:5000` is already injected by `docker-compose.dev.yml`, so no `client/.env` file is needed.
+
+## Docker Setup
+
+This repository uses two different Docker setups for two different goals.
+
+`docker-compose.dev.yml` is the development setup:
+
+- It runs two services: `client` and `server`.
+- It builds the `client-dev` and `server-dev` targets from the multi-stage `Dockerfile`.
+- It bind-mounts `./client` and `./server` into the containers so code edits are reflected immediately.
+- The frontend runs through the Vite dev server with HMR on `http://localhost:3000`.
+- The backend runs Flask in debug mode on `http://localhost:5000`.
+- Model artifacts are downloaded at backend container startup and then cached in the dev `artifacts` volume.
+
+`docker-compose.yml` is the deployment-style runtime setup:
+
+- It runs a single `web` service.
+- It builds the `runtime` target from the multi-stage `Dockerfile`.
+- It does not bind-mount the source tree, so the container runs the image exactly as built.
+- The frontend production build is copied into the image and served by Flask from the same container as the API.
+- Model artifacts and the CLIP cache are baked into the image during `docker compose build`.
+- This is the setup to use when you want to validate production-like behavior or prepare a deployment image.
 
 ## Runbook
 
 ### Development
 
-Start the live-reload Docker development stack:
+Use this setup for local development and iteration.
+
+Compose file: `docker-compose.dev.yml`  
+Docker targets: `client-dev` and `server-dev`
+
+Start the live-reload development stack:
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
@@ -120,7 +147,7 @@ What to expect in dev mode:
 - Changes under `client/` are picked up by the Vite dev server with HMR.
 - Changes under `server/` are picked up by Flask's debug reloader.
 - The `server` service still runs the artifact-preparation entrypoint before Flask starts, so the first startup may take a while while Kaggle artifacts and CLIP weights download.
-- The `artifacts` volume is shared with the production-style stack, so once the model files are downloaded they are reused by both workflows.
+- The dev stack keeps its own `artifacts` volume, so once the model files are downloaded they are reused across dev restarts and rebuilds.
 - The dev stack always binds `client` to port `3000` and `server` to port `5000`; changing root `PORT` only affects the single-container `web` service.
 
 Useful dev commands:
@@ -156,6 +183,11 @@ Simple source edits under `client/` and `server/` do not need an image rebuild.
 
 ### Build And Deployment-Style Run
 
+Use this setup when you want the app to run the way it would in deployment: one container, built frontend, Gunicorn, and artifacts already baked into the image.
+
+Compose file: `docker-compose.yml`  
+Docker target: `runtime`
+
 Build only the runtime image:
 
 ```bash
@@ -183,8 +215,8 @@ http://localhost:5000
 What the runtime build does:
 
 - The `client-build` stage runs `npm ci` and `npm run build`, then copies `client/dist` into the final runtime image.
-- The final `web` container serves the built frontend from Flask and starts the backend with Gunicorn.
-- The entrypoint always runs `server/scripts/prepare_artifacts.py` before Gunicorn starts.
+- The runtime build uses `KAGGLE_API_TOKEN` as a Docker build secret and runs `server/scripts/prepare_artifacts.py` during image build, so the VQnA bundle and CLIP cache are baked into the final image.
+- The final `web` container serves the built frontend from Flask and starts the backend with Gunicorn without downloading artifacts at startup.
 
 Useful runtime commands:
 
@@ -198,13 +230,13 @@ docker compose logs -f web
 
 Build-related notes:
 
-- Building the runtime image does not require Kaggle credentials by itself; the Kaggle token is needed when the container starts and the artifacts volume is empty or being refreshed.
+- Building the runtime image requires `KAGGLE_API_TOKEN` to be available to Docker Compose so it can be passed as a build secret.
 - Rebuild the runtime image after code changes, dependency changes, or Dockerfile changes.
-- If you only change root `.env` values, restart the container; no rebuild is needed.
+- If you change `KAGGLE_API_TOKEN`, no rebuild is needed unless you are building a fresh runtime image. If you change runtime settings like `PORT`, `WEB_CONCURRENCY`, or `GUNICORN_TIMEOUT`, restart the container; no rebuild is needed.
 
 ### Artifacts And Cache Behavior
 
-On first container startup, the entrypoint prepares:
+The runtime image now bakes in:
 
 - VQnA artifacts under `/app/server/src/artifacts/vqna`
 - The CLIP `ViT-L/14@336px` cache under `/app/server/src/artifacts/clip`
@@ -219,25 +251,23 @@ model_encoder_answer_type.pkl
 
 Those files are fetched from the exact `KAGGLE_MODEL_HANDLE` shown above.
 
+In the dev stack, artifacts are still prepared at container startup and cached in the `artifacts` Docker volume used by `docker-compose.dev.yml`.
+
 To clear the cached artifacts and force a clean re-download, stop the relevant stack and remove its volumes with the matching command:
 
 ```bash
-# Deployment-style stack
-docker compose down -v
-
 # Dev stack
 docker compose -f docker-compose.dev.yml down -v
 ```
 
-Use that only when you intentionally want to discard the shared artifact cache.
+Use that only when you intentionally want to discard the dev artifact cache. The production-style `web` image no longer depends on a runtime artifacts volume.
 
 ## Deployment
 
 The recommended deployment unit is the runtime Docker image produced by this repository. For deployments:
 
 - Use the exact `KAGGLE_MODEL_HANDLE` shown above; it identifies the trained Kaggle bundle this project depends on
-- Provide `KAGGLE_API_TOKEN` as a secret
-- Mount persistent storage at `/app/server/src/artifacts`
+- Provide `KAGGLE_API_TOKEN` as a build secret when creating the runtime image
 - Expose `PORT` from the `web` container
 
 ## Development Notes
