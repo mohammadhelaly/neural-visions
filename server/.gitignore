@@ -160,11 +160,14 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Runtime model artifacts downloaded from Kaggle
+# Runtime artifacts downloaded from Kaggle and OpenAI's CLIP
 src/artifacts/*
 !src/artifacts/vqna/
 src/artifacts/vqna/*
 !src/artifacts/vqna/.gitkeep
+!src/artifacts/clip/
+src/artifacts/clip/*
+!src/artifacts/clip/.gitkeep
 
 # Large model files not committed to git
 *.pth
