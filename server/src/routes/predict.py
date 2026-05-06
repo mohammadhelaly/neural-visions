@@ -13,7 +13,7 @@ predict = Blueprint("predict", __name__)
 model, model_encoder_answer, model_encoder_answer_type = load_model_and_encoders()
 
 
-@predict.route("/", methods=["POST"])
+@predict.route("/", methods=["POST"], strict_slashes=False)
 def predict_handler():
     user_image_path = VQNA_IMAGES_DIRECTORY / f"{uuid.uuid4().hex}.img"
 

@@ -67,14 +67,11 @@ FROM server-base AS runtime
 COPY server ./server
 COPY --from=client-build /app/client/dist ./client/dist
 
-# ============================
 # This block is specific for deployment with Hugging Face.
-
 RUN useradd -m -u 1000 user \
     && chown -R user:user /app/server/src/artifacts /app/server/src/images
 USER user
 ENV HOME=/home/user PATH=/home/user/.local/bin:$PATH
-# ============================
 
 # The uid, gid and mode settings are specific for deployment with Hugging Face.
 RUN --mount=type=secret,id=KAGGLE_API_TOKEN,uid=1000,gid=1000,mode=0400,required=true \
