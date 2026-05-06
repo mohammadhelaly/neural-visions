@@ -58,6 +58,11 @@ The repository is currently optimized for local Docker development and Docker im
 |   |   `-- main.py                 # Flask app entry point
 |   |-- pyproject.toml
 |   `-- requirements.txt
+|-- .github/
+|   `-- workflows/
+|       `-- deploy-hf-space.yml     # Syncs the repository to a Hugging Face Docker Space
+|-- .huggingface/
+|   `-- README.md                   # Hugging Face Space README with Docker metadata
 |-- docs/                           # Historical project paper/report
 |-- notebooks/                      # Historical experimentation notebook
 |-- docker-compose.dev.yml          # Live-reload Docker development stack
@@ -119,6 +124,8 @@ This repository uses two different Docker setups for two different goals.
 - The frontend production build is copied into the image and served by Flask from the same container as the API.
 - Model artifacts and the CLIP cache are baked into the image during `docker compose build`.
 - This is the setup to use when you want to validate production-like behavior or prepare a deployment image.
+
+The Hugging Face deployment path uses this same runtime behavior. The repository syncs to a Docker Space, and Hugging Face rebuilds the image from the synced files.
 
 ## Runbook
 
@@ -269,6 +276,34 @@ The recommended deployment unit is the runtime Docker image produced by this rep
 - Use the exact `KAGGLE_MODEL_HANDLE` shown above; it identifies the trained Kaggle bundle this project depends on
 - Provide `KAGGLE_API_TOKEN` as a build secret when creating the runtime image
 - Expose `PORT` from the `web` container
+
+### Hugging Face Space
+
+This repository includes `.github/workflows/deploy-hf-space.yml` for deploying to a Hugging Face Docker Space. The workflow syncs the repository to the Space, replaces the root README with `.huggingface/README.md`, and lets Hugging Face rebuild the Docker image from the synced files.
+
+Perform the setup in this order:
+
+1. Create a new Space on Hugging Face.
+   Choose `Docker` as the SDK and use CPU Basic hardware unless you intentionally want a paid upgrade.
+2. Open the new Space settings and add a secret named `KAGGLE_API_TOKEN`.
+   Hugging Face exposes this secret to the Docker build so the runtime image can bake in the VQnA artifacts and CLIP cache.
+3. In your GitHub repository settings, create an Actions secret named `HUGGINGFACE_ACCESS_TOKEN`.
+   Use a Hugging Face access token with write permission to the target Space repository.
+4. In your GitHub repository settings, create an Actions variable named `HUGGINGFACE_SPACE_REPOSITORY_ID`.
+   Set it to the Hugging Face repository id for the Space, for example `your-username/neural-visions`.
+5. Push these repository changes to `docker-startup-artifacts` after the Hugging Face and GitHub settings are in place.
+   The workflow runs automatically on pushes to `docker-startup-artifacts`, and it can also be triggered manually from the Actions tab.
+6. Wait for the GitHub workflow to finish, then wait for the Space to complete its Docker build on Hugging Face.
+   The first build can take a while because the runtime image bakes in the model artifacts.
+7. Open the Space page on Hugging Face and launch the app.
+   The built frontend and backend are served together from the same Docker container.
+
+Notes for the Hugging Face deployment:
+
+- The Space uses the production-style runtime image, not the live-reload dev setup.
+- The app runs on port `5000`, which is declared in `.huggingface/README.md` through `app_port: 5000`.
+- The runtime container is configured to run as user id `1000`, which matches Hugging Face Docker Space expectations.
+- If you change app code, dependencies, the Dockerfile, or the baked-artifact behavior, push to `docker-startup-artifacts` again to trigger a new deployment.
 
 ## Development Notes
 

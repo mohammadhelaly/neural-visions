@@ -67,6 +67,15 @@ FROM server-base AS runtime
 COPY server ./server
 COPY --from=client-build /app/client/dist ./client/dist
 
+# ============================
+# This block is specific for deployment with Hugging Face.
+
+RUN useradd -m -u 1000 user \
+    && chown -R user:user /app/server/src/artifacts /app/server/src/images
+USER user
+ENV HOME=/home/user PATH=/home/user/.local/bin:$PATH
+# ============================
+
 RUN --mount=type=secret,id=KAGGLE_API_TOKEN,required=true \
     export KAGGLE_API_TOKEN="$(cat /run/secrets/KAGGLE_API_TOKEN)" \
     && python /app/server/scripts/prepare_artifacts.py

@@ -1,0 +1,61 @@
+name: Deploy Hugging Face Space
+
+on:
+    push:
+        branches:
+            - docker-startup-artifacts
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: deploy-hf-space
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v6
+
+            - name: Validate Hugging Face settings
+              env:
+                  HUGGINGFACE_SPACE_REPOSITORY_ID: ${{ vars.HUGGINGFACE_SPACE_REPOSITORY_ID }}
+                  HUGGINGFACE_ACCESS_TOKEN: ${{ secrets.HUGGINGFACE_ACCESS_TOKEN }}
+              run: |
+                  test -n "$HUGGINGFACE_SPACE_REPOSITORY_ID" || {
+                    echo "Missing repository variable HUGGINGFACE_SPACE_REPOSITORY_ID."
+                    exit 1
+                  }
+
+                  test -n "$HUGGINGFACE_ACCESS_TOKEN" || {
+                    echo "Missing repository secret HUGGINGFACE_ACCESS_TOKEN."
+                    exit 1
+                  }
+
+            - name: Prepare Hugging Face Space payload
+              run: |
+                  rm -rf .hf-space-build
+                  mkdir -p .hf-space-build
+
+                  rsync -a --delete \
+                    --exclude '.git/' \
+                    --exclude '.github/' \
+                    --exclude '.hf-space-build/' \
+                    --exclude '.huggingface/' \
+                    ./ .hf-space-build/
+
+                  cp .huggingface/README.md .hf-space-build/README.md
+
+            - name: Sync Space to Hugging Face Hub
+              uses: huggingface/hub-sync@v0.1.0
+              with:
+                  github_repo_id: ${{ github.repository }}
+                  huggingface_repo_id: ${{ vars.HUGGINGFACE_SPACE_REPOSITORY_ID }}
+                  hf_token: ${{ secrets.HUGGINGFACE_ACCESS_TOKEN }}
+                  repo_type: space
+                  space_sdk: docker
+                  subdirectory: .hf-space-build

@@ -1,8 +1,11 @@
 .git
 .gitignore
 .gitattributes
+.github
+.huggingface
 .env
 .env.*
+.hf-space-build
 
 **/__pycache__/
 **/*.py[cod]
