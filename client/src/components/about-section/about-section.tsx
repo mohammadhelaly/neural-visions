@@ -34,7 +34,7 @@ const AboutSection = () => {
         <div className="flex flex-col items-center justify-center gap-12">
           <SectionHeader
             titleText="About VQnA"
-            subtitleText="Read about visual question answering."
+            subtitleText="Read about the benchmark, the model and the results."
             textTheme="light"
           />
           <ContentPadding>
@@ -47,70 +47,118 @@ const AboutSection = () => {
                 whileInView="animate"
                 className="w-full text-start font-poppins text-xl font-light text-white"
               >
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin
-                euismod libero non libero euismod, in feugiat purus lacinia. In
-                hac habitasse platea dictumst. Suspendisse potenti. Aenean
-                commodo, libero et tristique suscipit, neque odio vulputate est,
-                nec malesuada libero ante id purus.
+                NeuralVisions investigates visual question answering under the
+                noisy, open-ended conditions represented by the VizWiz VQA
+                benchmark. In contrast to conventional image classification, the
+                task requires a model to interpret an image and a natural
+                language question jointly, estimate whether the image contains
+                enough information to support a valid response, and then map the
+                pair to a short answer consistent with human annotations. The
+                project is therefore centered on multimodal representation
+                learning rather than on single-modality recognition alone.
                 <br />
                 <br />
-                Duis laoreet risus et nibh varius, ut feugiat ante egestas.
-                Suspendisse dapibus in elit vel hendrerit. Nunc ac purus in dui
-                ultrices varius a quis eros. Pellentesque vitae orci eget purus
-                blandit rhoncus non sed quam. Cras bibendum tincidunt dolor, in
-                ultrices ligula dictum eu. Aliquam semper libero a ex lacinia,
-                ac venenatis dolor tincidunt.
+                VizWiz is an especially meaningful benchmark because it comes
+                from an assistive technology setting rather than from a tightly
+                curated research workflow. The images are captured by blind
+                users and paired with spoken questions about everyday objects,
+                scenes, packaging, and text. As a result, the benchmark contains
+                many images that are blurred, poorly framed, backlit, occluded,
+                or otherwise difficult to interpret. Each example is paired with
+                multiple human answers, and the benchmark explicitly evaluates
+                both answer prediction and answerability prediction. This makes
+                VizWiz a more realistic and substantially more difficult setting
+                than many cleaner VQA datasets.
                 <br />
                 <br />
-                Quisque a quam ut dolor venenatis rhoncus ut et metus. Nulla vel
-                purus in est fermentum consequat a ac justo. Nulla facilisi. Sed
-                viverra, lectus eget malesuada bibendum, lectus est vulputate
-                nisi, eget efficitur arcu purus id ante. Curabitur feugiat
-                hendrerit metus, vel congue libero cursus eget. Quisque egestas
-                dictum mauris, ac sollicitudin orci hendrerit sed. In euismod,
-                arcu a egestas rhoncus, felis ex suscipit quam, id lacinia justo
-                nulla ac quam. Fusce et mi nec lorem imperdiet semper id id
-                arcu. Vivamus eleifend quam eu arcu eleifend, non congue ex
-                eleifend. Nulla facilisi.
+                The modeling direction used here is motivated by "Less Is More:
+                Linear Layers on CLIP Features as Powerful VizWiz Model." The
+                main claim of that work is that strong performance on VizWiz
+                does not necessarily require a deep custom fusion stack or heavy
+                end-to-end fine-tuning of a large vision-language model. A
+                strong pretrained multimodal encoder can provide the bulk of the
+                cross-modal representation, while shallow task-specific layers
+                adapt those features to the answer space, answer type, and
+                answerability objectives. This principle is the clearest
+                conceptual basis for NeuralVisions.
                 <br />
                 <br />
-                Integer scelerisque nisl nec malesuada rhoncus. In hac habitasse
-                platea dictumst. Nam gravida volutpat ante, at dictum ante
-                laoreet a. Nullam id dolor non sapien luctus auctor. Integer
-                lacinia nulla at lectus scelerisque, id vulputate tortor
-                facilisis. Fusce vehicula sem eget varius rhoncus. Nullam a sem
-                ut justo gravida finibus vel ac libero.
+                CLIP makes that simplification practical. Because CLIP is
+                trained contrastively on large-scale image-text pairs, it embeds
+                images and language into a shared space shaped by natural
+                language supervision rather than by a closed taxonomy of labels.
+                That property is especially useful for VizWiz, where a model may
+                need to move between object recognition, scene understanding,
+                color identification, and text-related reasoning in the same
+                prediction pipeline. CLIP is not itself a visual question
+                answering model, but it is a strong representation layer for the
+                kind of noisy, multimodal understanding required here.
                 <br />
                 <br />
-                Etiam lacinia libero vel nulla tincidunt efficitur. Duis egestas
-                tortor quis lacus tristique, id auctor felis dignissim. Sed
-                sagittis interdum nunc vel faucibus. Integer vulputate quam ac
-                odio ultricies, ac euismod libero vestibulum. Curabitur vel dui
-                ut libero commodo tincidunt nec sed erat. Sed varius aliquam
-                elit ut facilisis. Quisque ac ligula eu turpis consectetur
-                pellentesque.
+                NeuralVisions follows that recipe closely. The model uses the
+                frozen CLIP ViT-L/14@336px image encoder together with CLIP's
+                text encoder to generate feature vectors for the image and the
+                tokenized question. These vectors are flattened, concatenated,
+                normalized, and passed through a compact PyTorch head composed
+                of dropout and linear layers. The primary branch predicts the
+                answer over a fixed vocabulary of 5,410 answers. A second branch
+                predicts one of four answer types: other, number, yes/no, and
+                unanswerable. That answer-type prediction is expanded into a
+                learnable gate over the answer vocabulary so the final answer
+                logits can be biased toward more plausible regions of the label
+                space.
                 <br />
                 <br />
-                Praesent placerat purus id ipsum consectetur, nec hendrerit elit
-                tristique. Suspendisse sed purus feugiat, tristique ante eu,
-                venenatis ipsum. Donec vel metus vel justo placerat viverra.
-                Nulla id nisl venenatis, ultrices ante quis, suscipit justo.
+                A third branch predicts answerability as a separate binary
+                signal. During training, the model optimizes a multi-objective
+                loss consisting of answer classification loss, answer-type
+                classification loss, and binary cross-entropy loss for
+                answerability. In effect, the model is encouraged to learn not
+                only what answer is likely, but also what kind of answer should
+                be expected and whether the image-question pair is answerable in
+                the first place. This decomposition is important on VizWiz,
+                where many errors arise from unanswerable or weakly grounded
+                inputs rather than from ordinary class confusion alone.
                 <br />
                 <br />
-                Donec faucibus dapibus metus, id ultrices neque bibendum at. Sed
-                vel nisi auctor, tincidunt dui non, consectetur quam. Nullam
-                aliquam, nisi ut venenatis tristique, nisi dolor venenatis mi,
-                vel malesuada risus justo nec purus. Etiam venenatis dui in urna
-                bibendum, a fringilla quam facilisis. Nullam nec mi nec eros
-                dapibus gravida. Ut egestas odio a arcu fermentum, in dictum
-                metus fermentum. Donec cursus tortor id leo vehicula, ut euismod
-                odio bibendum. In quis tincidunt nisi.
+                The archived training notebook helps explain why this structure
+                is a good fit. The official VizWiz validation set is used for
+                validation, while an additional held-out test split is derived
+                from the official training data using stratification over answer
+                type and answerability. Within that setup, the most common
+                prompt by far is "What is this?", and the label distribution is
+                heavily skewed toward other and unanswerable. Those properties
+                help justify the auxiliary answer-type and answerability heads
+                rather than treating the task as a single flat classification
+                problem.
                 <br />
                 <br />
-                Ut vulputate felis sit amet sapien laoreet, et viverra libero
-                gravida. Quisque interdum, risus id dignissim pharetra, purus
-                nisl tempus neque, a auctor est ex nec quam. Sed viverra ex vel
-                efficitur.
+                In the archived CLIP-based experiment, the model reached 0.607
+                VizWiz accuracy on validation, 0.672 VizWiz accuracy on the
+                held-out test split, and 0.803 weighted average precision for
+                answerability. For a design that keeps the CLIP backbone frozen
+                and limits the learned task head to relatively shallow layers,
+                these results support the central premise that representation
+                quality and task decomposition can matter more than
+                architectural depth alone. The model performs best when the
+                pretrained embedding space already captures enough cross-modal
+                structure for lightweight adaptation to succeed.
+                <br />
+                <br />
+                The principal limitations of this approach follow directly from
+                its simplicity. The answer space is fixed rather than
+                generative, so the model cannot produce novel free-form answers
+                outside the learned vocabulary. The shallow head also depends
+                heavily on the quality of CLIP features and therefore inherits
+                CLIP's strengths and weaknesses, including sensitivity to severe
+                image degradation and imperfect handling of visually embedded
+                text.
+                <br />
+                <br />
+                Even so, NeuralVisions shows that a frozen multimodal encoder, a
+                small amount of task-specific supervision, and a carefully
+                structured objective can form a credible baseline for
+                accessibility-oriented visual question answering.
               </motion.p>
               <hr className="h-px w-full border-none bg-muted" />
               <motion.div
@@ -134,7 +182,7 @@ const AboutSection = () => {
                   href="https://www.kaggle.com/code/mohammadhelaly/visual-question-answering"
                   className="flex items-center justify-start gap-1 text-start font-poppins text-base font-light text-white underline lg:justify-center lg:text-center"
                 >
-                  View our code
+                  Explore our notebook on Kaggle
                   <LinkArrow className="size-4 min-w-4 fill-white" />
                 </a>
                 <a
@@ -158,7 +206,7 @@ const AboutSection = () => {
                   href="https://huggingface.co/spaces/CVPR/VizWiz-CLIP-VQA/tree/main"
                   className="flex items-center justify-start gap-1 text-start font-poppins text-base font-light text-white underline lg:justify-center lg:text-center"
                 >
-                  View the code for "Less is More"
+                  Explore the code for "Less is More"
                   <LinkArrow className="size-4 min-w-4 fill-white" />
                 </a>
                 <a

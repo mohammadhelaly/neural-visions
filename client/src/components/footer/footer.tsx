@@ -67,9 +67,9 @@ const Footer = () => {
                 .
               </p>
               <p className="text-center font-poppins text-xs font-thin text-white lg:text-start">
-                Deep learning model encorporates the{" "}
+                Deep learning model incorporates the{" "}
                 <a
-                  href="https://openai.com/research/clip/"
+                  href="https://openai.com/index/clip/"
                   target="_blank"
                   rel="noreferrer"
                   className="text-white underline"
@@ -105,7 +105,7 @@ const Footer = () => {
               <p className="text-center font-poppins text-xs font-thin text-white lg:text-start">
                 Developed with{" "}
                 <a
-                  href="https://reactjs.org/"
+                  href="https://react.dev/"
                   target="_blank"
                   rel="noreferrer"
                   className="text-white underline"

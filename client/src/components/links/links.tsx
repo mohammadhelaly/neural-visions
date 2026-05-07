@@ -24,7 +24,7 @@ const Links = (props: Props) => {
       >
         <Kaggle className={`size-8 rounded-sm fill-${fillColor}`} />
       </Icon>
-      <Icon link="https://openai.com/research/clip" name="OpenAI">
+      <Icon link="https://openai.com/index/clip/" name="OpenAI">
         <OpenAi className={`size-8 rounded-sm fill-${fillColor}`} />
       </Icon>
       <Icon link="https://vizwiz.org/tasks-and-datasets/vqa/" name="VizWiz">
