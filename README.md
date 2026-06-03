@@ -308,7 +308,7 @@ The values have different responsibilities:
 - `HUGGINGFACE_ACCESS_TOKEN`
   This is a GitHub Actions secret. It lets the GitHub workflow write to the target Hugging Face Space repository.
 - `HUGGINGFACE_SPACE_REPOSITORY_ID`
-  This is a GitHub Actions variable. It tells the workflow which Hugging Face Space repository to sync to, for example `MohammadHelaly/neural-visions`.
+  This is a GitHub Actions variable. It tells the workflow which Hugging Face Space repository to sync to, for example `mohammadhelaly/neural-visions`.
 - `KAGGLE_MODEL_HANDLE`
   This is not a deployment secret. It is a fixed runtime identifier that must stay pinned to the exact Kaggle bundle this project expects.
 
@@ -321,7 +321,7 @@ In other words:
 
 The deployed Space exposes the app in two forms:
 
-- The Hugging Face repository page at [huggingface.co/spaces/MohammadHelaly/neural-visions](https://huggingface.co/spaces/MohammadHelaly/neural-visions)
+- The Hugging Face repository page at [huggingface.co/spaces/mohammadhelaly/neural-visions](https://huggingface.co/spaces/mohammadhelaly/neural-visions)
 - The direct app page at [mohammadhelaly-neural-visions.hf.space](https://mohammadhelaly-neural-visions.hf.space/)
 
 The repository page includes Hugging Face chrome and embeds the live app. The `.hf.space` URL is the direct live web page for the application itself.
