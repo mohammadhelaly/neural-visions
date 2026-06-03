@@ -13,7 +13,7 @@ const Links = (props: Props) => {
   return (
     <div className="flex flex-row items-center justify-center gap-2 lg:gap-5">
       <Icon
-        link="https://github.com/MohammadHelaly/neural-visions"
+        link="https://github.com/mohammadhelaly/neural-visions"
         name="GitHub"
       >
         <GitHub className={`size-8 rounded-sm fill-${fillColor}`} />
