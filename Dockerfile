@@ -28,7 +28,8 @@ FROM python:3.11-slim AS server-base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
-    PIP_NO_CACHE_DIR=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:$PATH" \
     PORT=5000
 
 WORKDIR /app
@@ -40,10 +41,11 @@ RUN apt-get update \
         libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY server/requirements.txt ./server/requirements.txt
-RUN python -m pip install --upgrade pip \
-    && python -m pip install wheel "setuptools<80" \
-    && python -m pip install --no-build-isolation -r server/requirements.txt
+COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /uvx /bin/
+
+COPY server/pyproject.toml server/uv.lock ./server/
+RUN cd server \
+    && uv sync --locked --no-dev --no-install-project
 
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
 

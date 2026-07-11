@@ -13,6 +13,7 @@ A web app for answering open-ended questions about images, developed using Pytho
 - React Hook Form and Zod for the visual question answering form and validation.
 - TanStack React Query and Axios for API mutation handling and backend requests.
 - Python and Flask for the backend API and static frontend serving.
+- uv for backend package management.
 - Flask-CORS for cross-origin requests between the local Vite dev server and Flask API.
 - PyTorch and TorchVision for model loading and inference.
 - OpenAI CLIP for image and text encoding.
@@ -52,8 +53,8 @@ A web app for answering open-ended questions about images, developed using Pytho
 |   |   |-- app.py                  # Flask app factory, CORS, routes, and static folder config
 |   |   |-- config.py               # Paths for client build, runtime images, and artifacts
 |   |   `-- main.py                 # Flask app entry point
-|   |-- pyproject.toml
-|   `-- requirements.txt
+|   |-- pyproject.toml              # Backend project metadata, dependencies, and Ruff config
+|   `-- uv.lock                     # Locked backend dependency graph
 |-- .github/
 |   `-- workflows/
 |       `-- deploy-hf-space.yml     # Syncs the repository to a Hugging Face Docker Space
@@ -176,7 +177,7 @@ docker compose -f docker-compose.dev.yml run --rm client npm run format
 Rebuild the dev images when any of these change:
 
 - The files `client/package.json` or `client/package-lock.json`
-- The file `server/requirements.txt`
+- The files `server/pyproject.toml` or `server/uv.lock`
 - `Dockerfile`
 - Either compose file
 
